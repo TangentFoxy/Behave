@@ -70,12 +70,63 @@ do
   _base_0.__class = _class_0
   Node = _class_0
 end
-local Sequence
+local Composite
 do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
     addObject = function(self, obj)
+      local _list_0 = self.nodes
+      for _index_0 = 1, #_list_0 do
+        local node = _list_0[_index_0]
+        node:addObject(obj)
+      end
+    end
+  }
+  _base_0.__index = _base_0
+  setmetatable(_base_0, _parent_0.__base)
+  _class_0 = setmetatable({
+    __init = function(self, nodes)
+      if nodes == nil then
+        nodes = { }
+      end
+      self.nodes = nodes
+      return _class_0.__parent.__init(self)
+    end,
+    __base = _base_0,
+    __name = "Composite",
+    __parent = _parent_0
+  }, {
+    __index = function(cls, name)
+      local val = rawget(_base_0, name)
+      if val == nil then
+        local parent = rawget(cls, "__parent")
+        if parent then
+          return parent[name]
+        end
+      else
+        return val
+      end
+    end,
+    __call = function(cls, ...)
+      local _self_0 = setmetatable({}, _base_0)
+      cls.__init(_self_0, ...)
+      return _self_0
+    end
+  })
+  _base_0.__class = _class_0
+  if _parent_0.__inherited then
+    _parent_0.__inherited(_parent_0, _class_0)
+  end
+  Composite = _class_0
+end
+local Sequence
+do
+  local _class_0
+  local _parent_0 = Composite
+  local _base_0 = {
+    addObject = function(self, obj)
+      _class_0.__parent.__base.addObject(self)
       obj[self.u] = {
         index = 0,
         running = 0
@@ -104,12 +155,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, nodes)
-      if nodes == nil then
-        nodes = { }
-      end
-      self.nodes = nodes
-      return _class_0.__parent.__init(self)
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "Sequence",
@@ -141,9 +188,10 @@ end
 local Selector
 do
   local _class_0
-  local _parent_0 = Node
+  local _parent_0 = Composite
   local _base_0 = {
     addObject = function(self, obj)
+      _class_0.__parent.__base.addObject(self)
       obj[self.u] = {
         index = 0,
         running = 0
@@ -172,12 +220,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, nodes)
-      if nodes == nil then
-        nodes = { }
-      end
-      self.nodes = nodes
-      return _class_0.__parent.__init(self)
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "Selector",
@@ -209,7 +253,7 @@ end
 local Random
 do
   local _class_0
-  local _parent_0 = Node
+  local _parent_0 = Composite
   local _base_0 = {
     update = function(self, obj, ...)
       local index = math.floor(math.random() * #self.nodes + 1)
@@ -219,12 +263,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, nodes)
-      if nodes == nil then
-        nodes = { }
-      end
-      self.nodes = nodes
-      return _class_0.__parent.__init(self)
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "Random",
@@ -256,9 +296,10 @@ end
 local Randomizer
 do
   local _class_0
-  local _parent_0 = Node
+  local _parent_0 = Composite
   local _base_0 = {
     addObject = function(self, obj)
+      _class_0.__parent.__base.addObject(self)
       obj[self.u] = {
         running = false
       }
@@ -278,12 +319,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, nodes)
-      if nodes == nil then
-        nodes = { }
-      end
-      self.nodes = nodes
-      return _class_0.__parent.__init(self)
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "Randomizer",
@@ -430,82 +467,14 @@ do
   end
   RandomSelector = _class_0
 end
-local Repeat
-do
-  local _class_0
-  local _parent_0 = Node
-  local _base_0 = {
-    addObject = function(self, obj)
-      obj[self.u] = {
-        counter = 1,
-        running = false
-      }
-    end,
-    update = function(self, obj, ...)
-      local result = success
-      if obj[self.u].running then
-        result = self.node:update(obj, ...)
-        if not (result == running) then
-          obj[self.u].running = false
-        end
-      end
-      while result == success and obj[self.u].counter < self.cycles do
-        obj[self.u].counter = obj[self.u].counter + 1
-        result = self.node:update(obj, ...)
-      end
-      if result == running then
-        obj[self.u].running = true
-      else
-        obj[self.u].counter = 1
-      end
-      return result
-    end
-  }
-  _base_0.__index = _base_0
-  setmetatable(_base_0, _parent_0.__base)
-  _class_0 = setmetatable({
-    __init = function(self, cycles, node)
-      if cycles == nil then
-        cycles = 2
-      end
-      if node == nil then
-        node = Node()
-      end
-      self.cycles, self.node = cycles, node
-      return _class_0.__parent.__init(self)
-    end,
-    __base = _base_0,
-    __name = "Repeat",
-    __parent = _parent_0
-  }, {
-    __index = function(cls, name)
-      local val = rawget(_base_0, name)
-      if val == nil then
-        local parent = rawget(cls, "__parent")
-        if parent then
-          return parent[name]
-        end
-      else
-        return val
-      end
-    end,
-    __call = function(cls, ...)
-      local _self_0 = setmetatable({}, _base_0)
-      cls.__init(_self_0, ...)
-      return _self_0
-    end
-  })
-  _base_0.__class = _class_0
-  if _parent_0.__inherited then
-    _parent_0.__inherited(_parent_0, _class_0)
-  end
-  Repeat = _class_0
-end
 local Decorator
 do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
+    addObject = function(self, obj)
+      return self.node:addObject(obj)
+    end,
     update = function(self, obj, ...)
       return self.node:update(obj, ...)
     end
@@ -546,6 +515,78 @@ do
     _parent_0.__inherited(_parent_0, _class_0)
   end
   Decorator = _class_0
+end
+local Repeat
+do
+  local _class_0
+  local _parent_0 = Decorator
+  local _base_0 = {
+    addObject = function(self, obj)
+      _class_0.__parent.__base.addObject(self)
+      obj[self.u] = {
+        counter = 1,
+        running = false
+      }
+    end,
+    update = function(self, obj, ...)
+      local result = success
+      if obj[self.u].running then
+        result = self.node:update(obj, ...)
+        if not (result == running) then
+          obj[self.u].running = false
+        end
+      end
+      while result == success and obj[self.u].counter < self.cycles do
+        obj[self.u].counter = obj[self.u].counter + 1
+        result = self.node:update(obj, ...)
+      end
+      if result == running then
+        obj[self.u].running = true
+      else
+        obj[self.u].counter = 1
+      end
+      return result
+    end
+  }
+  _base_0.__index = _base_0
+  setmetatable(_base_0, _parent_0.__base)
+  _class_0 = setmetatable({
+    __init = function(self, cycles, node)
+      if cycles == nil then
+        cycles = 2
+      end
+      if node == nil then
+        node = Node()
+      end
+      self.cycles, self.node = cycles, node
+      return _class_0.__parent.__init(self, self.node)
+    end,
+    __base = _base_0,
+    __name = "Repeat",
+    __parent = _parent_0
+  }, {
+    __index = function(cls, name)
+      local val = rawget(_base_0, name)
+      if val == nil then
+        local parent = rawget(cls, "__parent")
+        if parent then
+          return parent[name]
+        end
+      else
+        return val
+      end
+    end,
+    __call = function(cls, ...)
+      local _self_0 = setmetatable({}, _base_0)
+      cls.__init(_self_0, ...)
+      return _self_0
+    end
+  })
+  _base_0.__class = _class_0
+  if _parent_0.__inherited then
+    _parent_0.__inherited(_parent_0, _class_0)
+  end
+  Repeat = _class_0
 end
 local Succeed
 do

@@ -13,10 +13,10 @@ bt = require "behave"
 
 tree = bt.Sequence({
   bt.Node({
-    run = function(self)
+    run = function(self, obj, ...)
       -- do stuff
     end,
-    finish = function(self)
+    finish = function(self, obj, ...)
       -- finish up
     end
   }),
@@ -29,6 +29,9 @@ tree = bt.Sequence({
     })
   })
 })
+
+tree:addObject(obj)
+tree:update(obj)
 
 node1 = {
   -- pretend this has run/finish functions or whatever
@@ -74,6 +77,7 @@ will be passed to their children as they are called).
 Pass a table of nodes to these to set their contents. All composite nodes repeat
 after the entire tree has been processed.
 
+- Composite: Super class of the other composite nodes.
 - Sequence: Runs children until a failure or success of all.
 - Selector: Runs children until a success or failure of all.
 - Random: Runs a random child and returns its result.
@@ -88,8 +92,8 @@ Pass a single node to these, except for `Repeat`, which needs a number followed
 by a node. All decorator nodes (except `RunOnce`) repeat after the entire tree
 has been processed.
 
+- Decorator: Superclass. Just returns the result of its child node.
 - Repeat: Repeats a node a specified number of times, fails if the node fails.
-- Decorator: Does nothing except return the result of its child node.
 - Succeed: Runs a node and returns success.
 - Fail: Runs a node and returns failure.
 - Invert: Runs a node, reporting a success on fail, and failure on success.

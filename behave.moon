@@ -33,12 +33,18 @@ class Node
       obj[@u].started = false
     return result
 
--- Runs children in order until one returns fail, or all succeed.
-class Sequence extends Node
+class Composite extends Node
   new: (@nodes={}) =>
     super!
 
   addObject: (obj) =>
+    for node in *@nodes
+      node\addObject obj
+
+-- Runs children in order until one returns fail, or all succeed.
+class Sequence extends Composite
+  addObject: (obj) =>
+    super!
     obj[@u] = {
       index: 0
       running: 0
@@ -64,11 +70,9 @@ class Sequence extends Node
     return result
 
 -- Runs children in order until one succeeds or all fail.
-class Selector extends Node
-  new: (@nodes={}) =>
-    super!
-
+class Selector extends Composite
   addObject: (obj) =>
+    super!
     obj[@u] = {
       index: 0
       running: 0
@@ -93,19 +97,14 @@ class Selector extends Node
     return result
 
 -- Runs a random child.
-class Random extends Node
-  new: (@nodes={}) =>
-    super!
-
+class Random extends Composite
   update: (obj, ...) =>
     index = math.floor math.random! * #@nodes + 1
     return @nodes[index]\update obj, ...
 
-class Randomizer extends Node
-  new: (@nodes={}) =>
-    super!
-
+class Randomizer extends Composite
   addObject: (obj) =>
+    super!
     obj[@u] = {
       running: false
     }
@@ -163,12 +162,23 @@ class RandomSelector extends Randomizer
 
     return result
 
--- Repeats a node a specified number of times, unless it fails.
-class Repeat extends Node
-  new: (@cycles=2, @node=Node!) =>
+class Decorator extends Node
+  new: (@node=Node!) =>
     super!
 
   addObject: (obj) =>
+    @node\addObject obj
+
+  update: (obj, ...) =>
+    return @node\update obj, ...
+
+-- Repeats a node a specified number of times, unless it fails.
+class Repeat extends Decorator
+  new: (@cycles=2, @node=Node!) =>
+    super @node
+
+  addObject: (obj) =>
+    super!
     obj[@u] = {
       counter: 1
       running: false
@@ -192,13 +202,6 @@ class Repeat extends Node
       obj[@u].counter = 1
 
     return result
-
-class Decorator extends Node
-  new: (@node=Node!) =>
-    super!
-
-  update: (obj, ...) =>
-    return @node\update obj, ...
 
 -- Returns success whether or not the node succeeds.
 class Succeed extends Decorator
@@ -285,6 +288,7 @@ setmetatable {
   :Node
 
   -- Composite Nodes
+  :Composite
   :Sequence
   :Selector
   :Random
