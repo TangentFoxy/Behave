@@ -17,23 +17,28 @@ local Node
 do
   local _class_0
   local _base_0 = {
+    addObject = function(self, obj)
+      obj[self.u] = {
+        started = false
+      }
+    end,
     run = function(self)
       return success
     end,
-    update = function(self, ...)
+    update = function(self, obj, ...)
       local result = success
-      if not self.started and self.start then
-        result = self:start(...)
-        self.started = true
+      if not obj[self.u].started and self.start then
+        result = self:start(obj, ...)
+        obj[self.u].started = true
       end
       if result == success then
-        result = self:run(...)
+        result = self:run(obj, ...)
       end
       if result == success then
         if self.finish then
-          result = self:finish(...)
+          result = self:finish(obj, ...)
         end
-        self.started = false
+        obj[self.u].started = false
       end
       return result
     end
@@ -50,7 +55,7 @@ do
       self.success = success
       self.running = running
       self.fail = fail
-      self.started = false
+      self.u = { }
     end,
     __base = _base_0,
     __name = "Node"
@@ -70,22 +75,28 @@ do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
-    update = function(self, ...)
+    addObject = function(self, obj)
+      obj[self.u] = {
+        index = 0,
+        running = 0
+      }
+    end,
+    update = function(self, obj, ...)
       local result = success
-      if self._running then
-        result = self._running:update(...)
+      if obj[self.u].running then
+        result = obj[self.u].running:update(obj, ...)
         if not (result == running) then
-          self._running = false
+          obj[self.u].running = false
         end
       end
-      while result == success and self.index < #self.nodes do
-        self.index = self.index + 1
-        result = self.nodes[self.index]:update(...)
+      while result == success and obj[self.u].index < #self.nodes do
+        obj[self.u].index = obj[self.u].index + 1
+        result = self.nodes[obj[self.u].index]:update(obj, ...)
       end
       if result == running then
-        self._running = self.nodes[self.index]
+        obj[self.u].running = self.nodes[obj[self.u].index]
       else
-        self.index = 0
+        obj[self.u].index = 0
       end
       return result
     end
@@ -98,9 +109,7 @@ do
         nodes = { }
       end
       self.nodes = nodes
-      _class_0.__parent.__init(self)
-      self.index = 0
-      self._running = false
+      return _class_0.__parent.__init(self)
     end,
     __base = _base_0,
     __name = "Sequence",
@@ -134,22 +143,28 @@ do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
-    update = function(self, ...)
+    addObject = function(self, obj)
+      obj[self.u] = {
+        index = 0,
+        running = 0
+      }
+    end,
+    update = function(self, obj, ...)
       local result = fail
-      if self._running then
-        result = self._running:update(...)
+      if obj[self.u].running then
+        result = obj[self.u].running:update(obj, ...)
         if not (result == running) then
-          self._running = false
+          obj[self.u].running = false
         end
       end
-      while result == fail and self.index < #self.nodes do
-        self.index = self.index + 1
-        result = self.nodes[self.index]:update(...)
+      while result == fail and obj[self.u].index < #self.nodes do
+        obj[self.u].index = obj[self.u].index + 1
+        result = self.nodes[obj[self.u].index]:update(obj, ...)
       end
       if result == running then
-        self._running = self.nodes[self.index]
+        obj[self.u].running = self.nodes[obj[self.u].index]
       else
-        self.index = 0
+        obj[self.u].index = 0
       end
       return result
     end
@@ -162,9 +177,7 @@ do
         nodes = { }
       end
       self.nodes = nodes
-      _class_0.__parent.__init(self)
-      self.index = 0
-      self._running = false
+      return _class_0.__parent.__init(self)
     end,
     __base = _base_0,
     __name = "Selector",
@@ -198,9 +211,9 @@ do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
-    update = function(self, ...)
+    update = function(self, obj, ...)
       local index = math.floor(math.random() * #self.nodes + 1)
-      return self.nodes[index]:update(...)
+      return self.nodes[index]:update(obj, ...)
     end
   }
   _base_0.__index = _base_0
@@ -240,40 +253,26 @@ do
   end
   Random = _class_0
 end
-local RandomSequence
+local Randomizer
 do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
-    shuffle = function(self)
-      self._shuffled = { }
+    addObject = function(self, obj)
+      obj[self.u] = {
+        running = false
+      }
+      return self:shuffle(obj)
+    end,
+    shuffle = function(self, obj)
+      obj[self.u].shuffledNodes = { }
       for i = 1, #self.nodes do
         local r = math.random(i)
         if not (r == i) then
-          self._shuffled[i] = self._shuffled[r]
+          obj[self.u].shuffledNodes[i] = obj[self.u].shuffledNodes[r]
         end
-        self._shuffled[r] = self.nodes[i]
+        obj[self.u].shuffledNodes[r] = self.nodes[i]
       end
-    end,
-    update = function(self, ...)
-      local result = success
-      if self._running then
-        result = self._running:update(...)
-        if not (result == running) then
-          self._running = false
-        end
-      end
-      local tmp
-      while result == success and #self._shuffled > 0 do
-        result = self._shuffled[1]:update(...)
-        tmp = table.remove(self._shuffled, 1)
-      end
-      if result == running then
-        self._running = tmp
-      else
-        self:shuffle()
-      end
-      return result
     end
   }
   _base_0.__index = _base_0
@@ -284,9 +283,66 @@ do
         nodes = { }
       end
       self.nodes = nodes
-      _class_0.__parent.__init(self)
-      self._running = false
-      return self:shuffle()
+      return _class_0.__parent.__init(self)
+    end,
+    __base = _base_0,
+    __name = "Randomizer",
+    __parent = _parent_0
+  }, {
+    __index = function(cls, name)
+      local val = rawget(_base_0, name)
+      if val == nil then
+        local parent = rawget(cls, "__parent")
+        if parent then
+          return parent[name]
+        end
+      else
+        return val
+      end
+    end,
+    __call = function(cls, ...)
+      local _self_0 = setmetatable({}, _base_0)
+      cls.__init(_self_0, ...)
+      return _self_0
+    end
+  })
+  _base_0.__class = _class_0
+  if _parent_0.__inherited then
+    _parent_0.__inherited(_parent_0, _class_0)
+  end
+  Randomizer = _class_0
+end
+local RandomSequence
+do
+  local _class_0
+  local _parent_0 = Randomizer
+  local _base_0 = {
+    update = function(self, obj, ...)
+      local result = success
+      if obj[self.u].running then
+        result = obj[self.u].running:update(obj, ...)
+        if not (result == running) then
+          obj[self.u].running = false
+        end
+      end
+      local tmp
+      while result == success and #obj[self.u].shuffledNodes > 0 do
+        result = obj[self.u].shuffledNodes[1]:update(obj, ...)
+        tmp = table.remove(obj[self.u].shuffledNodes, 1)
+      end
+      if result == running then
+        obj[self.u].running = tmp
+      else
+        self:shuffle(obj)
+      end
+      return result
+    end
+  }
+  _base_0.__index = _base_0
+  setmetatable(_base_0, _parent_0.__base)
+  _class_0 = setmetatable({
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "RandomSequence",
@@ -318,33 +374,23 @@ end
 local RandomSelector
 do
   local _class_0
-  local _parent_0 = Node
+  local _parent_0 = Randomizer
   local _base_0 = {
-    shuffle = function(self)
-      self._shuffled = { }
-      for i = 1, #self.nodes do
-        local r = math.random(i)
-        if not (r == i) then
-          self._shuffled[i] = self._shuffled[r]
-        end
-        self._shuffled[r] = self.nodes[i]
-      end
-    end,
-    update = function(self, ...)
+    update = function(self, obj, ...)
       local result = fail
-      if self._running then
-        result = self._running:update(...)
+      if obj[self.u].running then
+        result = obj[self.u].running:update(obj, ...)
         if not (result == running) then
-          self._running = false
+          obj[self.u].running = false
         end
       end
       local tmp
-      while result == fail and #self._shuffled > 0 do
-        result = self._shuffled[1]:update(...)
-        tmp = table.remove(self._shuffled, 1)
+      while result == fail and #obj[self.u].shuffledNodes > 0 do
+        result = obj[self.u].shuffledNodes[1]:update(obj, ...)
+        tmp = table.remove(obj[self.u].shuffledNodes, 1)
       end
       if result == running then
-        self._running = tmp
+        obj[self.u].running = tmp
       else
         self:shuffle()
       end
@@ -354,14 +400,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, nodes)
-      if nodes == nil then
-        nodes = { }
-      end
-      self.nodes = nodes
-      _class_0.__parent.__init(self)
-      self._running = false
-      return self:shuffle()
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "RandomSelector",
@@ -395,22 +435,28 @@ do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
-    update = function(self, ...)
+    addObject = function(self, obj)
+      obj[self.u] = {
+        counter = 1,
+        running = false
+      }
+    end,
+    update = function(self, obj, ...)
       local result = success
-      if self._running then
-        result = self.node:update(...)
+      if obj[self.u].running then
+        result = self.node:update(obj, ...)
         if not (result == running) then
-          self._running = false
+          obj[self.u].running = false
         end
       end
-      while result == success and self.counter < self.cycles do
-        self.counter = self.counter + 1
-        result = self.node:update(...)
+      while result == success and obj[self.u].counter < self.cycles do
+        obj[self.u].counter = obj[self.u].counter + 1
+        result = self.node:update(obj, ...)
       end
       if result == running then
-        self._running = true
+        obj[self.u].running = true
       else
-        self.counter = 1
+        obj[self.u].counter = 1
       end
       return result
     end
@@ -426,9 +472,7 @@ do
         node = Node()
       end
       self.cycles, self.node = cycles, node
-      _class_0.__parent.__init(self)
-      self.counter = 1
-      self._running = false
+      return _class_0.__parent.__init(self)
     end,
     __base = _base_0,
     __name = "Repeat",
@@ -457,17 +501,13 @@ do
   end
   Repeat = _class_0
 end
-local Succeed
+local Decorator
 do
   local _class_0
   local _parent_0 = Node
   local _base_0 = {
-    update = function(self, ...)
-      if running == self.node:update(...) then
-        return running
-      else
-        return success
-      end
+    update = function(self, obj, ...)
+      return self.node:update(obj, ...)
     end
   }
   _base_0.__index = _base_0
@@ -479,6 +519,52 @@ do
       end
       self.node = node
       return _class_0.__parent.__init(self)
+    end,
+    __base = _base_0,
+    __name = "Decorator",
+    __parent = _parent_0
+  }, {
+    __index = function(cls, name)
+      local val = rawget(_base_0, name)
+      if val == nil then
+        local parent = rawget(cls, "__parent")
+        if parent then
+          return parent[name]
+        end
+      else
+        return val
+      end
+    end,
+    __call = function(cls, ...)
+      local _self_0 = setmetatable({}, _base_0)
+      cls.__init(_self_0, ...)
+      return _self_0
+    end
+  })
+  _base_0.__class = _class_0
+  if _parent_0.__inherited then
+    _parent_0.__inherited(_parent_0, _class_0)
+  end
+  Decorator = _class_0
+end
+local Succeed
+do
+  local _class_0
+  local _parent_0 = Decorator
+  local _base_0 = {
+    update = function(self, obj, ...)
+      if running == self.node:update(obj, ...) then
+        return running
+      else
+        return success
+      end
+    end
+  }
+  _base_0.__index = _base_0
+  setmetatable(_base_0, _parent_0.__base)
+  _class_0 = setmetatable({
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "Succeed",
@@ -510,10 +596,10 @@ end
 local Fail
 do
   local _class_0
-  local _parent_0 = Node
+  local _parent_0 = Decorator
   local _base_0 = {
-    update = function(self, ...)
-      if running == self.node:update(...) then
+    update = function(self, obj, ...)
+      if running == self.node:update(obj, ...) then
         return running
       else
         return fail
@@ -523,12 +609,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, node)
-      if node == nil then
-        node = Node()
-      end
-      self.node = node
-      return _class_0.__parent.__init(self)
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "Fail",
@@ -560,10 +642,10 @@ end
 local Invert
 do
   local _class_0
-  local _parent_0 = Node
+  local _parent_0 = Decorator
   local _base_0 = {
-    update = function(self, ...)
-      local result = self.node:update(...)
+    update = function(self, obj, ...)
+      local result = self.node:update(obj, ...)
       if result == running then
         return running
       elseif result == success then
@@ -576,12 +658,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, node)
-      if node == nil then
-        node = Node()
-      end
-      self.node = node
-      return _class_0.__parent.__init(self)
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "Invert",
@@ -613,13 +691,18 @@ end
 local RunOnce
 do
   local _class_0
-  local _parent_0 = Node
+  local _parent_0 = Decorator
   local _base_0 = {
-    update = function(self, ...)
-      if not (self.ran) then
-        local result = self.node:update(...)
+    addObject = function(self, obj)
+      obj[self.u] = {
+        ran = false
+      }
+    end,
+    update = function(self, obj, ...)
+      if not (obj[self.u].ran) then
+        local result = self.node:update(obj, ...)
         if not (result == running) then
-          self.run = true
+          obj[self.u].ran = true
         end
         return result
       else
@@ -630,13 +713,8 @@ do
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)
   _class_0 = setmetatable({
-    __init = function(self, node)
-      if node == nil then
-        node = Node()
-      end
-      self.node = node
-      _class_0.__parent.__init(self)
-      self.ran = false
+    __init = function(self, ...)
+      return _class_0.__parent.__init(self, ...)
     end,
     __base = _base_0,
     __name = "RunOnce",
@@ -672,19 +750,19 @@ Class = function(name, parent)
     __index = base,
     __class = newClass
   }
-  newClass = setmetable({
+  newClass = setmetatable({
     __init = function() end,
     __base = base,
     __name = name
   }, {
     __call = function(cls, ...)
-      local self = setmetable({ }, base)
+      local self = setmetatable({ }, base)
       cls.__init(self, ...)
       return self
     end
   })
   if parent then
-    setmetable(base, {
+    setmetatable(base, {
       __parent = parent.__base
     })
     newClass.__parent = parent
@@ -702,13 +780,14 @@ Class = function(name, parent)
   end
   return newClass, base
 end
-local behave = {
+return setmetatable({
   Node = Node,
   Sequence = Sequence,
   Selector = Selector,
   Random = Random,
   RandomSequence = RandomSequence,
   RandomSelector = RandomSelector,
+  Decorator = Decorator,
   Repeat = Repeat,
   Succeed = Succeed,
   Fail = Fail,
@@ -718,24 +797,8 @@ local behave = {
   running = running,
   fail = fail,
   Class = Class
-}
-behave.clone = function(object)
-  local new
-  local cls = getmetatable(object).__class.__name
-  if cls == "Repeat" then
-    new = behave[cls](object.cycles, object)
-  else
-    new = behave[cls](object)
+}, {
+  __call = function(bt, ...)
+    return bt.Sequence(...)
   end
-  if object.nodes then
-    local nodes = { }
-    for k, v in pairs(object.nodes) do
-      nodes[k] = behave.clone(v)
-    end
-    new.nodes = nodes
-  elseif object.node then
-    new.node = behave.clone(object.node)
-  end
-  return new
-end
-return behave
+})

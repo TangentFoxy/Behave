@@ -11,21 +11,26 @@ class Node
     @running = running
     @fail = fail
 
-    @started = false
+    @u = {}
+
+  addObject: (obj) =>
+    obj[@u] = {
+      started: false
+    }
 
   run: =>
     return success
 
-  update: (...) =>
+  update: (obj, ...) =>
     result = success
-    if not @started and @start
-      result = @\start ...
-      @started = true
+    if not obj[@u].started and @start
+      result = @\start obj, ...
+      obj[@u].started = true
     if result == success
-      result = @\run ...
+      result = @\run obj, ...
     if result == success
-      result = @\finish(...) if @finish
-      @started = false
+      result = @\finish(obj, ...) if @finish
+      obj[@u].started = false
     return result
 
 -- Runs children in order until one returns fail, or all succeed.
@@ -33,25 +38,28 @@ class Sequence extends Node
   new: (@nodes={}) =>
     super!
 
-    @index = 0
-    @_running = false
+  addObject: (obj) =>
+    obj[@u] = {
+      index: 0
+      running: 0
+    }
 
-  update: (...) =>
+  update: (obj, ...) =>
     result = success
 
-    if @_running
-      result = @_running\update ...
+    if obj[@u].running
+      result = obj[@u].running\update obj, ...
       unless result == running
-        @_running = false
+        obj[@u].running = false
 
-    while result == success and @index < #@nodes
-      @index += 1
-      result = @nodes[@index]\update ...
+    while result == success and obj[@u].index < #@nodes
+      obj[@u].index += 1
+      result = @nodes[obj[@u].index]\update obj, ...
 
     if result == running
-      @_running = @nodes[@index]
+      obj[@u].running = @nodes[obj[@u].index]
     else
-      @index = 0
+      obj[@u].index = 0
 
     return result
 
@@ -60,24 +68,27 @@ class Selector extends Node
   new: (@nodes={}) =>
     super!
 
-    @index = 0
-    @_running = false
+  addObject: (obj) =>
+    obj[@u] = {
+      index: 0
+      running: 0
+    }
 
-  update: (...) =>
+  update: (obj, ...) =>
     result = fail
-    if @_running
-      result = @_running\update ...
+    if obj[@u].running
+      result = obj[@u].running\update obj, ...
       unless result == running
-        @_running = false
+        obj[@u].running = false
 
-    while result == fail and @index < #@nodes
-      @index += 1
-      result = @nodes[@index]\update ...
+    while result == fail and obj[@u].index < #@nodes
+      obj[@u].index += 1
+      result = @nodes[obj[@u].index]\update obj, ...
 
     if result == running
-      @_running = @nodes[@index]
+      obj[@u].running = @nodes[obj[@u].index]
     else
-      @index = 0
+      obj[@u].index = 0
 
     return result
 
@@ -86,77 +97,67 @@ class Random extends Node
   new: (@nodes={}) =>
     super!
 
-  update: (...) =>
+  update: (obj, ...) =>
     index = math.floor math.random! * #@nodes + 1
-    return @nodes[index]\update ...
+    return @nodes[index]\update obj, ...
 
--- Randomizes order of nodes in between complete runs of them as a Sequence.
-class RandomSequence extends Node
+class Randomizer extends Node
   new: (@nodes={}) =>
     super!
 
-    @_running = false
-    @shuffle!
+  addObject: (obj) =>
+    obj[@u] = {
+      running: false
+    }
+    @shuffle obj
 
-  shuffle: =>
-    @_shuffled = {}
+  shuffle: (obj) =>
+    obj[@u].shuffledNodes = {}
     for i = 1, #@nodes
       r = math.random i
       unless r == i
-        @_shuffled[i] = @_shuffled[r]
-      @_shuffled[r] = @nodes[i]
+        obj[@u].shuffledNodes[i] = obj[@u].shuffledNodes[r]
+      obj[@u].shuffledNodes[r] = @nodes[i]
 
-  update: (...) =>
+-- Randomizes order of nodes in between complete runs of them as a Sequence.
+class RandomSequence extends Randomizer
+  update: (obj, ...) =>
     result = success
 
-    if @_running
-      result = @_running\update ...
+    if obj[@u].running
+      result = obj[@u].running\update obj, ...
       unless result == running
-        @_running = false
+        obj[@u].running = false
 
     local tmp
-    while result == success and #@_shuffled > 0
-      result = @_shuffled[1]\update ...
-      tmp = table.remove @_shuffled, 1
+    while result == success and #obj[@u].shuffledNodes > 0
+      result = obj[@u].shuffledNodes[1]\update obj, ...
+      tmp = table.remove obj[@u].shuffledNodes, 1
 
     if result == running
-      @_running = tmp
+      obj[@u].running = tmp
     else
-      @shuffle!
+      @shuffle obj
 
     return result
 
 -- Randomizes order of nodes in between complete runs of them as a Selector.
-class RandomSelector extends Node
-  new: (@nodes={}) =>
-    super!
-
-    @_running = false
-    @shuffle!
-
-  shuffle: =>
-    @_shuffled = {}
-    for i = 1, #@nodes
-      r = math.random i
-      unless r == i
-        @_shuffled[i] = @_shuffled[r]
-      @_shuffled[r] = @nodes[i]
-
-  update: (...) =>
+class RandomSelector extends Randomizer
+  update: (obj, ...) =>
     result = fail
 
-    if @_running
-      result = @_running\update ...
+    if obj[@u].running
+      result = obj[@u].running\update obj, ...
       unless result == running
-        @_running = false
+        obj[@u].running = false
 
     local tmp
-    while result == fail and #@_shuffled > 0
-      result = @_shuffled[1]\update ...
-      tmp = table.remove @_shuffled, 1
+    while result == fail and #obj[@u].shuffledNodes > 0
+      result = obj[@u].shuffledNodes[1]\update obj, ...
+      tmp = table.remove obj[@u].shuffledNodes, 1
 
     if result == running
-      @_running = tmp
+      obj[@u].running = tmp
     else
       @shuffle!
 
@@ -167,57 +168,58 @@ class Repeat extends Node
   new: (@cycles=2, @node=Node!) =>
     super!
 
-    @counter = 1
-    @_running = false
+  addObject: (obj) =>
+    obj[@u] = {
+      counter: 1
+      running: false
+    }
 
-  update: (...) =>
+  update: (obj, ...) =>
     result = success
 
-    if @_running
-      result = @node\update ...
+    if obj[@u].running
+      result = @node\update obj, ...
       unless result == running
-        @_running = false
+        obj[@u].running = false
 
-    while result == success and @counter < @cycles
-      @counter += 1
-      result = @node\update ...
+    while result == success and obj[@u].counter < @cycles
+      obj[@u].counter += 1
+      result = @node\update obj, ...
 
     if result == running
-      @_running = true
+      obj[@u].running = true
     else
-      @counter = 1
+      obj[@u].counter = 1
 
     return result
 
--- Returns success whether or not the node succeeds.
-class Succeed extends Node
+class Decorator extends Node
   new: (@node=Node!) =>
     super!
 
-  update: (...) =>
-    if running == @node\update ...
+  update: (obj, ...) =>
+    return @node\update obj, ...
+
+-- Returns success whether or not the node succeeds.
+class Succeed extends Decorator
+  update: (obj, ...) =>
+    if running == @node\update obj, ...
       return running
     else
       return success
 
 -- Returns fail whether or not the node fails.
-class Fail extends Node
-  new: (@node=Node!) =>
-    super!
-
-  update: (...) =>
-    if running == @node\update ...
+class Fail extends Decorator
+  update: (obj, ...) =>
+    if running == @node\update obj, ...
       return running
     else
       return fail
 
 -- Returns success when the node fails, and failure on success.
-class Invert extends Node
-  new: (@node=Node!) =>
-    super!
-
-  update: (...) =>
-    result = @node\update ...
+class Invert extends Decorator
+  update: (obj, ...) =>
+    result = @node\update obj, ...
     if result == running
       return running
     elseif result == success
@@ -226,17 +228,17 @@ class Invert extends Node
       return success
 
 -- Only runs children once, and returns fail from then on.
-class RunOnce extends Node
-  new: (@node=Node!) =>
-    super!
+class RunOnce extends Decorator
+  addObject: (obj) =>
+    obj[@u] = {
+      ran: false
+    }
 
-    @ran = false
-
-  update: (...) =>
-    unless @ran
-      result = @node\update ...
+  update: (obj, ...) =>
+    unless obj[@u].ran
+      result = @node\update obj, ...
       unless result == running
-        @run = true
+        obj[@u].ran = true
       return result
     else
       return fail
@@ -249,19 +251,19 @@ Class = (name, parent) ->
     __class: newClass
   }
 
-  newClass = setmetable {
+  newClass = setmetatable {
     __init: ->
     __base: base
     __name: name
   }, {
     __call: (cls, ...) ->
-      @ = setmetable({}, base)
+      @ = setmetatable({}, base)
       cls.__init(@, ...)
       return @
   }
 
   if parent
-    setmetable base, {
+    setmetatable base, {
       __parent: parent.__base
     }
 
@@ -278,7 +280,7 @@ Class = (name, parent) ->
 
   return newClass, base
 
-behave = {
+setmetatable {
   -- Leaf Node
   :Node
 
@@ -290,6 +292,7 @@ behave = {
   :RandomSelector
 
   -- Decorator Nodes
+  :Decorator
   :Repeat
   :Succeed
   :Fail
@@ -303,25 +306,7 @@ behave = {
 
   -- Utility Fns
   :Class
+}, {
+  __call: (bt, ...) ->
+    bt.Sequence ...
 }
-
-behave.clone = (object) ->
-  local new
-  cls = getmetatable(object).__class.__name
-
-  if cls == "Repeat"
-    new = behave[cls] object.cycles, object
-  else
-    new = behave[cls] object
-
-  if object.nodes
-    nodes = {}
-    for k,v in pairs object.nodes
-      nodes[k] = behave.clone v
-    new.nodes = nodes
-  elseif object.node
-    new.node = behave.clone object.node
-
-  return new
-
-return behave

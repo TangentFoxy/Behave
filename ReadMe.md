@@ -84,11 +84,12 @@ after the entire tree has been processed.
 
 ## Decorator Nodes
 
-Pass a single node to these, except for `Repeat`, which needs a number & a node.
-All decorator nodes (except `RunOnce`) repeat after the entire tree has been
-processed.
+Pass a single node to these, except for `Repeat`, which needs a number followed
+by a node. All decorator nodes (except `RunOnce`) repeat after the entire tree
+has been processed.
 
 - Repeat: Repeats a node a specified number of times, fails if the node fails.
+- Decorator: Does nothing except return the result of its child node.
 - Succeed: Runs a node and returns success.
 - Fail: Runs a node and returns failure.
 - Invert: Runs a node, reporting a success on fail, and failure on success.
