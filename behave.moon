@@ -120,6 +120,8 @@ Random = (tab) ->
   success: true
   :running
   failure: false
+
+  :make
   :Node
 
   :Decorator

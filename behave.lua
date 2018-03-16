@@ -163,6 +163,7 @@ return {
   success = true,
   running = running,
   failure = false,
+  make = make,
   Node = Node,
   Decorator = Decorator,
   Inverter = Inverter,
