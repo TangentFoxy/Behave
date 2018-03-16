@@ -1,23 +1,25 @@
-local make, Node, Decorate
+local Node, Decorate, Repeat
 
 running = setmetatable {}, __tostring: -> return "running"
+
+-- produces a callable function from a defined node or full behavior tree
+make = (tab) ->
+  if "function" == type tab
+    return tab
+  elseif tab.decorate
+    return Decorate tab
+  elseif tab.repeat
+    return Repeat tab
+  elseif "function" == type tab.type
+    return tab.type tab
+  else
+    return Node tab
 
 get_nodes = (tab) ->
   nodes = {}
   for node in *tab
     table.insert nodes, make node
   return nodes
-
--- produces a callable function from a defined node or full behavior tree
-make = (tab) ->
-  if "function" == type tab
-    return tab
-  elseif "function" == type tab.type
-    return tab.type tab
-  elseif tab.decorate
-    return Decorate tab
-  else
-    return Node tab
 
 -- complex leaf node
 --  state is preserved through calls, optional start/finish functions
@@ -38,8 +40,35 @@ Node = (tab) ->
 Decorator = (tab) ->
   node = make tab[1]
   return (...) ->
-    result = node object, ...
+    result = node(...)
     result = tab.decorate result, ... unless result == running
+    return result
+
+-- inverts the result of a node before returning it
+Inverted = (tab) ->
+  node = make tab[1]
+  return (...) ->
+    result = node(...)
+    return not result unless result == running
+
+Repeat = (tab) ->
+  node = make tab[1]
+  i, r = 1, tab.repeat
+  return (...) ->
+    while i <= r
+      return running if running == node(...)
+      i += 1
+    i = 1
+    return true
+
+Once = (tab) ->
+  node = make tab[1]
+  ran = false
+  return (...) ->
+    return false if ran
+    result = node(...)
+    unless result == running
+      ran = true
     return result
 
 -- returns first success/running, or failure
@@ -91,9 +120,13 @@ Random = (tab) ->
   success: true
   :running
   failure: false
-
   :Node
+
   :Decorator
+  :Inverter
+  :Repeat
+  :Once
+
   :Selector
   :Sequence
   :Random

@@ -38,15 +38,29 @@ WalkPath = {
 }
 ```
 
-## The Decorator Node
+## Decorator Nodes
 
-A very basic extension to the result of a leaf node, allowing you to alter the
-result it returns. Note: You cannot alter a `behave.running` return.
+Basic extensions to leaf nodes. Decorator allows you to specify a function to
+modify returned results (except for `behave.running`). Inverted inverts the
+result of its node. Repeat allows you to repeatedly call a node a specified
+number of times. Once allows you to make a node only get called once.
 
 ```
-InvertSomeNode = {
+ManuallyInvertedSomeNode = {
   decorator: (result) ->
     return not result
+  SomeNode
+}
+InvertedSomeNode = {
+  type: behave.Inverted
+  SomeNode
+}
+SomeNodeRepeated = {
+  repeat: 20
+  SomeNode
+}
+SomeNodeOnce = {
+  type: behave.Once
   SomeNode
 }
 ```
@@ -67,7 +81,7 @@ Behaviors = {
 ## Custom Nodes
 
 You can create custom nodes and easily use them. Rather than explaining how to,
-here's an example:
+here's an example inverter (note: `behave.Inverted` offers this feature):
 
 ```
 -- defining the node type:
