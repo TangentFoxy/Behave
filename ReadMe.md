@@ -1,105 +1,87 @@
 # Behave
 
-A simple implementation of behavior trees in MoonScript / Lua.
+A simple implementation of behavior trees in MoonScript / Lua. Define behaviors
+as functions or small tables, then call `behave.make` on them to get a function
+you can call repeatedly to execute behaviors.
+
+A node should return a truthy or falsy value to indicate success or failure, or
+`behave.running` to indicate that the node needs to be called again to continue
+running.
+
+Examples are in MoonScript, but shouldn't be too difficult to understand even if
+you are unfamiliar with its syntax.
 
 ## Example
 
-(Note: The top example and last example work. The others are from experimenting
-with ideas about how to make it easier to write code interfacing with this
-library.)
+```
+TODO
+```
+
+## Leaf Nodes
+
+The easiest node is just a function that will be passed all arguments sent to a
+behavior tree it is part of. There is a slightly more complex leaf node for
+maintaining an internal state, and optional `start`/`finish` functions only
+called at the beginning and end of processing.
 
 ```
-bt = require "behave"
-
-tree = bt.Sequence({
-  bt.Node({
-    run = function(self, obj, ...)
-      -- do stuff
-    end,
-    finish = function(self, obj, ...)
-      -- finish up
-    end
-  }),
-  bt.Random({
-    bt.Node({
-      -- add some functions
-    }),
-    bt.Node({
-      -- even more functionality!
-    })
-  })
-})
-
-tree:addObject(obj)
-tree:update(obj)
-
-node1 = {
-  -- pretend this has run/finish functions or whatever
+WalkPath = {
+  start: (state, entity) ->
+    state.path = findPath(entity, entity.target)
+    return state.path
+  run: (state, entity) ->
+    -- this will not run if start fails
+    state.path.step!
+  finish: (state, entity) ->
+    -- this will run only if run returns a truthy value besides behave.running
+    state.path = nil
 }
-node2 = {} -- same
-bt.Make ({
-  "Sequence",
-  node1, node2, {
-    "Random",
-    node3, node4 -- these are in 'Random'
-  }
-})
-
-tree = bt.Factory({
-  "Sequence",
-  {
-    "Node",
-    {
-      run = function(self) end,
-      finish = function(self) end
-    }
-  }
-})
-
-node1 = bt.Node()
-function node1:run()
-  -- do stuff!
-end
 ```
 
-## The Leaf Node
+## The Decorator Node
 
-`Node` accepts a table of values to be set on it. It expects a `run` function,
-and optionally a `start` and a `finish` function, which will only be run at the
-beginning and end of a node being run (whereas `run` can be called multiple
-times).
+A very basic extension to the result of a leaf node, allowing you to alter the
+result it returns. Note: You cannot alter a `behave.running` return.
 
-To run a behavior tree, call `update` on itself, with optional arguments (which
-will be passed to their children as they are called).
+```
+InvertSomeNode = {
+  decorator: (result) ->
+    return not result
+  SomeNode
+}
+```
 
 ## Composite Nodes
 
-Pass a table of nodes to these to set their contents. All composite nodes repeat
-after the entire tree has been processed.
+Selector skips any failures and returns on the first node that returns a truthy
+value (or returns `false` if nothing succeeds). Sequence continues until there
+is a failure or returns success. Random executes a random node underneath it.
 
-- Composite: Super class of the other composite nodes.
-- Sequence: Runs children until a failure or success of all.
-- Selector: Runs children until a success or failure of all.
-- Random: Runs a random child and returns its result.
-- RandomSequence: Randomizes the order of its children, then acts like a
-  Sequence.
-- RandomSelector: Randomizes the order of its children, then acts like a
-  Selector.
+```
+Behaviors = {
+  type: behave.Random
+  WalkRandomly, LookAtPhone, LeaveArea
+}
+```
 
-## Decorator Nodes
+## Custom Nodes
 
-Pass a single node to these, except for `Repeat`, which needs a number followed
-by a node. All decorator nodes (except `RunOnce`) repeat after the entire tree
-has been processed.
+You can create custom nodes and easily use them. Rather than explaining how to,
+here's an example:
 
-- Decorator: Superclass. Just returns the result of its child node.
-- Repeat: Repeats a node a specified number of times, fails if the node fails.
-- Succeed: Runs a node and returns success.
-- Fail: Runs a node and returns failure.
-- Invert: Runs a node, reporting a success on fail, and failure on success.
-- RunOnce: Runs a node, reporting its results, and fail after that.
+```
+-- defining the node type:
+Invert = (tab) ->                   -- your fn will be passed a table describing the node
+  node = behave.make tab[1]         -- call make on any sub-nodes that you will be using, save the result
+  return (...) ->                   -- use variable arguments, so sub-nodes can
+    result = node(...)              -- get what they need
+    unless result == behave.running -- running nodes should not be interrupted
+      result = not result           -- and finally we invert the result before
+    return result                   -- returning it
 
-## Return Values
-
-Within the module, `success`, `running`, and `fail` are defined. They are also
-present on all nodes (so you can use `self.success` and such).
+-- using the node type:
+SomeInvertedNode = {
+  type: Invert       -- this is how the library knows what function to call
+  SomeNode           -- this is the node that will be inverted
+}
+```
